@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Sidebar,
@@ -37,6 +38,8 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { notificationService } from "@/services/notificationService";
+import { orderService } from "@/services/orderService";
+import { countActiveOrders, formatTabBadge } from "@/lib/orderCounts";
 import { ROUTES } from "@/lib/constants";
 import { toast } from "sonner";
 import { performLogout } from "@/lib/logout";
@@ -119,6 +122,36 @@ export function DashboardShell({
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
+
+  const { data: customerOrdersData } = useQuery({
+    queryKey: ["orders", "mine"],
+    queryFn: () => orderService.listMine(),
+    enabled: isAuthenticated && variant === "customer",
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+  const { data: vendorOrdersData } = useQuery({
+    queryKey: ["orders", "kitchen"],
+    queryFn: () => orderService.listKitchen(),
+    enabled: isAuthenticated && variant === "vendor",
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+  const { data: riderOrdersData } = useQuery({
+    queryKey: ["orders", "delivery"],
+    queryFn: () => orderService.listDelivery(),
+    enabled: isAuthenticated && variant === "rider",
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
+  const activeOrderCount = useMemo(() => {
+    if (variant === "customer") return countActiveOrders(customerOrdersData?.data.orders);
+    if (variant === "vendor") return countActiveOrders(vendorOrdersData?.data.orders);
+    if (variant === "rider") return countActiveOrders(riderOrdersData?.data.orders);
+    return 0;
+  }, [variant, customerOrdersData, vendorOrdersData, riderOrdersData]);
+
   const headerSubtitle =
     variant === "customer" && firstName ? `Hello, ${firstName}` : title;
 
@@ -173,6 +206,11 @@ export function DashboardShell({
                         item.href === ROUTES.notifications &&
                         typeof unreadData === "number" &&
                         unreadData > 0;
+                      const showActiveOrders =
+                        activeOrderCount > 0 &&
+                        ((variant === "customer" && item.href === ROUTES.customerOrders) ||
+                          (variant === "vendor" && item.href === "/vendor/orders") ||
+                          (variant === "rider" && item.href === "/rider/deliveries"));
 
                       return (
                         <SidebarMenuItem key={item.href}>
@@ -194,6 +232,19 @@ export function DashboardShell({
                                   {unreadData > 9 ? "9+" : unreadData}
                                 </span>
                               </span>
+                            ) : showActiveOrders ? (
+                              <span className="relative inline-flex shrink-0">
+                                <Icon className="size-4" />
+                                <span
+                                  className={cn(
+                                    "absolute -right-1 -top-0.5 hidden h-3.5 min-w-3.5 items-center justify-center rounded-full bg-primary px-0.5 text-[0.55rem] font-semibold text-primary-foreground",
+                                    "group-data-[collapsible=icon]:flex",
+                                  )}
+                                  aria-hidden
+                                >
+                                  {activeOrderCount > 9 ? "9+" : activeOrderCount}
+                                </span>
+                              </span>
                             ) : (
                               <Icon className="size-4" />
                             )}
@@ -204,6 +255,10 @@ export function DashboardShell({
                               className="border-0 bg-primary text-[0.65rem] font-semibold text-primary-foreground"
                             >
                               {unreadData > 99 ? "99+" : unreadData}
+                            </SidebarMenuBadge>
+                          ) : showActiveOrders ? (
+                            <SidebarMenuBadge className="border-0 bg-primary text-[0.65rem] font-semibold text-primary-foreground">
+                              {formatTabBadge(activeOrderCount)}
                             </SidebarMenuBadge>
                           ) : null}
                         </SidebarMenuItem>
@@ -226,6 +281,11 @@ export function DashboardShell({
                       item.href === ROUTES.notifications &&
                       typeof unreadData === "number" &&
                       unreadData > 0;
+                    const showActiveOrders =
+                      activeOrderCount > 0 &&
+                      ((variant === "customer" && item.href === ROUTES.customerOrders) ||
+                        (variant === "vendor" && item.href === "/vendor/orders") ||
+                        (variant === "rider" && item.href === "/rider/deliveries"));
 
                     return (
                       <SidebarMenuItem key={item.href}>
@@ -247,6 +307,19 @@ export function DashboardShell({
                                 {unreadData > 9 ? "9+" : unreadData}
                               </span>
                             </span>
+                          ) : showActiveOrders ? (
+                            <span className="relative inline-flex shrink-0">
+                              <Icon className="size-4" />
+                              <span
+                                className={cn(
+                                  "absolute -right-1 -top-0.5 hidden h-3.5 min-w-3.5 items-center justify-center rounded-full bg-primary px-0.5 text-[0.55rem] font-semibold text-primary-foreground",
+                                  "group-data-[collapsible=icon]:flex",
+                                )}
+                                aria-hidden
+                              >
+                                {activeOrderCount > 9 ? "9+" : activeOrderCount}
+                              </span>
+                            </span>
                           ) : (
                             <Icon className="size-4" />
                           )}
@@ -257,6 +330,10 @@ export function DashboardShell({
                             className="border-0 bg-primary text-[0.65rem] font-semibold text-primary-foreground"
                           >
                             {unreadData > 99 ? "99+" : unreadData}
+                          </SidebarMenuBadge>
+                        ) : showActiveOrders ? (
+                          <SidebarMenuBadge className="border-0 bg-primary text-[0.65rem] font-semibold text-primary-foreground">
+                            {formatTabBadge(activeOrderCount)}
                           </SidebarMenuBadge>
                         ) : null}
                       </SidebarMenuItem>
